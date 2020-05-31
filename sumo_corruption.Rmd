@@ -1,0 +1,261 @@
+---
+title: "Corruption in Sumo Wrestling during the 80s and 90s"
+author: "Jingwu Fang/Michelle Trinh/Ruodi Huang"
+date: "5/30/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+<br>
+
+<center>
+
+![](https://media.giphy.com/media/aj3cmpLOloe9a/giphy.gif)
+
+
+</center>
+
+<br>
+
+#### 1, A brief Introduction of Sumo: 
+
+
+Sumo wrestling dating back to 3 CE is considered the most religious and important activity in Japan. Due to its unparallel historical and religious characteristics, Sumo wrestling is widely considered as a national ritual instead of a common sport.
+
+Therefore, many of the highest rank sumo wrestlers are treated as demi-gods in Japan, and the grand champions among them(i.e. Yokozunas) once reached the highest ranking will not longer be demoted. Once a Yokozuna, always a Yokozuna, and if their performance go down in time, instead of being demoted like other ranks, they will announce retirement. 
+
+Being possibly the most ancient Japanese ritual sport, Sumo maintains its popularity and thrives through the modern days. Especially during the 80s and 90s, Sumo wrestling became unprecedently popular as Japanese economy soared. More and more money was involved domestically and internationally, and many famous wrestlers were active in that era and made their own history.
+
+However, wherever money is invloved, corruption is there. And in this report, we will present the evidence and existence of match fixing in Sumo tournaments.
+
+
+<br>
+
+<center>
+
+![](https://media.giphy.com/media/rGqnPvaZYkaqc/giphy.gif)
+
+
+</center>
+
+<br>
+
+#### 2, Is there a critical bout in Sumo tournament? 
+
+There are 6 Sumo tournaments every year in Japan, once every two months. And in each of these 6 tournaments, wrestlers have 15 bouts to attend to. Within those 15 bouts, if one can win equal or more than 8/15 bouts, he will be promoted to the next rank, and a promotion means more money and sponsorship. 
+
+And here comes the funny moment:
+
+Say wrestler A won 7/14 bouts and about to start his last bout in this tournament. He certainly needs another win for the promotion.
+
+At the same time, wrestler B is not even close to the benchmark or far above the benchmark, let's say he won only 3/14 bouts or 12/14 bouts. Then clearly B doesn't really care that much of the upcoming game.
+
+This is where the idea of critical game comes in: one of the wrestlers needs a win, and the other one does not really care. 
+
+
+<br>
+
+<center>
+
+![](https://media.giphy.com/media/WqgdMKW8tYul2/giphy.gif)
+
+</center>
+
+
+<br>
+
+
+#### 3, Does match fixing exist in Sumo tournaments?
+
+In order to prove that match fixing exists in those critical bouts. Let's take a look at the below logics:
+
+
+![](https://sumo-project-stats405.s3-us-west-2.amazonaws.com/sumo_graph1.jpg)
+
+![](https://sumo-project-stats405.s3-us-west-2.amazonaws.com/sumo_graph2.jpg)
+
+![](https://sumo-project-stats405.s3-us-west-2.amazonaws.com/sumo_graph3.jpg)
+
+<br>
+
+<center>
+
+![](https://media.giphy.com/media/j2RhGVQVNW9IiR6qZe/giphy.gif)
+
+</center>
+
+<br>
+
+
+#### 4, Our findings PART I
+
+
+```{r libraries, echo=FALSE, message=FALSE, eval=TRUE, results='hide'}
+library(plyr)
+library(dplyr)
+library(stringr)
+library(RMySQL)
+library(ggplot2)
+```
+
+
+```{r connect_rds, echo=FALSE, message=FALSE, eval=TRUE, results='hide'}
+
+projpath <- getwd()
+
+if(!exists("xdbsock")) {
+    xdbsock <- ""
+    cat("\n", "Parameter 'xdbsock' not found, setting to empty string for general usage", "\n")
+}
+
+drv <- dbDriver("MySQL")
+
+xdbuser <- Sys.getenv("MAS405_AWS_MY_DB_ADMIN_USER")
+dzpw <- Sys.getenv("MAS405_AWS_MY_DB_ADMIN_PW")
+xdbname <- Sys.getenv("MAS405_AWS_MY_DB_ADMIN_DBNAME")
+xdbhost <- Sys.getenv("MAS405_AWS_MY_DB_ADMIN_HOST")
+xdbport <- as.integer( Sys.getenv("MAS405_AWS_MY_DB_ADMIN_PORT") )
+
+con <- dbConnect(drv, user=xdbuser, password=dzpw, dbname=xdbname, host=xdbhost, port=xdbport, unix.sock=xdbsock)
+
+qstr <- "SELECT * FROM sumo_clean_df"
+sumo_df_clean <- dbGetQuery(con, qstr)
+
+```
+
+
+##### Critical_game_winning_rate:
+
+```{r Critical_game_winning_rate, echo=FALSE, message=FALSE, eval=TRUE, results='hide'}
+# sumo_df_clean <- read.csv("~/Desktop/sumo_df_clean.csv", header=TRUE)
+sumo_df_clean <- sumo_df_clean %>% mutate(rikishi1_result = str_sub(V6, 1, 3), rikishi2_result = str_sub(V12, 1, 3))
+critical_game_won <- sumo_df_clean %>% filter((rikishi1_result == '8-7' & V7 == '1') | (rikishi2_result == '8-7' & V13 == '1'))
+critical_game_lost <- sumo_df_clean %>% filter((rikishi1_result == '7-8' & V7 == '0') | (rikishi2_result == '7-8' & V13 == '0'))
+critical_game_winning_rate <- nrow(critical_game_won)/(nrow(critical_game_won) + nrow(critical_game_lost))
+critical_game_winning_rate
+critical_game_losing_rate <- 1 - critical_game_winning_rate
+critical_game_losing_rate
+nrow(critical_game_won)
+nrow(critical_game_lost)
+```
+
+![](https://sumo-project-stats405.s3-us-west-2.amazonaws.com/sumo_graph4.jpg)
+
+```{r plotcritical, echo=FALSE, eval=TRUE, message=FALSE, results='show', fig.width=6}
+critical_win_lost_df <- data.frame(critical_game_result=c('won','lost'), probability=c(critical_game_winning_rate, critical_game_losing_rate))
+ggplot(critical_win_lost_df, aes(x=critical_game_result, y=probability)) + geom_bar(stat='identity', fill='orangered1') + geom_text(aes(label=probability), vjust=-0.3, size=3.5) + theme_minimal()
+# critical_win_lost_df
+```
+
+![](https://sumo-project-stats405.s3-us-west-2.amazonaws.com/sumo_graph5.jpg)
+
+##### Regular_game_winning_rate:
+
+```{r Regular_game_winning_rate, echo=FALSE, message=FALSE, eval=TRUE, results='hide'}
+winner_part1 <- critical_game_won %>% filter(V7 == '1') %>% select(V1, V5, V11)#filter winner/oppon in rikishi1 col
+winner_part2 <- critical_game_won %>% filter(V13 == '1') %>% select(V1, V11, V5)#filter winner/oppon in rikishi2 col
+winner_names <- bind_rows(winner_part1, winner_part2)#stack them together
+winner_names <- winner_names %>% dplyr::rename(Date=V1, Winner=V5, opponent=V11)
+winner_names <- winner_names[order(winner_names$Date), ]#sort everything base on date.
+distinct_winner_names <- unique(winner_names$Winner)
+#see the number of distinct winner names in critical games------only 199 names
+distinct_opponent_names <- unique(winner_names$opponent)
+
+regular_win <- sumo_df_clean %>% filter((V5 %in% distinct_winner_names & V7 == '1') | (V11 %in% distinct_winner_names & V13 == '1'))
+regular_lose <- sumo_df_clean %>% filter((V5 %in% distinct_winner_names & V7 == '0') | (V11 %in% distinct_winner_names & V13 == '0'))
+regular_game_winning_rate <- nrow(regular_win)/(nrow(regular_win) + nrow(regular_lose))
+regular_game_winning_rate
+regular_game_losing_rate <- 1 - regular_game_winning_rate
+regular_game_losing_rate
+nrow(regular_win)
+nrow(regular_lose)
+```
+
+```{r plotregular, echo=FALSE, eval=TRUE, message=FALSE, results='show', fig.width=6}
+regular_win_lost_df <- data.frame(regular_game_result=c('won','lost'), probability=c(regular_game_winning_rate, regular_game_losing_rate))
+ggplot(regular_win_lost_df, aes(x=regular_game_result, y=probability)) + geom_bar(stat='identity', fill='steelblue') + geom_text(aes(label=probability), vjust=-0.3, size=3.5) + theme_minimal()
+```
+
+<br>
+
+<center>
+
+![](https://media.giphy.com/media/QWd4npbYgbKVi/giphy.gif)
+
+</center>
+
+<br>
+
+#### 4, Our findings PART II
+
+
+When the two wrestlers from the previous critical games meet again in the next tournament, what are the odds that the previous winner would lose?
+
+
+##### Rematch between same wrestlers:
+
+```{r Rematch_game_winning_rate, echo=FALSE, message=FALSE, eval=TRUE, results='hide'}
+
+
+iid <- 1
+rematch_one_to_one <- NULL #reestablish one-to-one scenario to select all the matches the two wrestlers meet again.
+for(iid in 1:nrow(critical_game_won)) {
+  ind2 <- which(sumo_df_clean$V5 == critical_game_won$V5[iid] & sumo_df_clean$V11 == critical_game_won$V11[iid])
+  rematch_one_to_one <- rbind(rematch_one_to_one, data.frame(sumo_df_clean[ind2,]))
+}
+rematch_one_to_one <- rematch_one_to_one %>% group_by(V1)
+rematch_one_to_one
+```
+```{r Rematch_game_losing_rate, echo=FALSE, message=FALSE, eval=TRUE, results='hide'}
+
+ind1 <- which(lag(rematch_one_to_one$V5)==rematch_one_to_one$V5 & dplyr::lag((rematch_one_to_one$rikishi1_result=='8-7' & rematch_one_to_one$V7 == '1') | (rematch_one_to_one$rikishi2_result=='8-7' & rematch_one_to_one$V13 == '1')))
+rematch_one_to_one_final <- rematch_one_to_one[ind1, ]
+rematch_one_to_one_final
+
+number_of_rematch_wins <- rematch_one_to_one_final %>% filter(V7==1)
+number_of_rematch_losses <- rematch_one_to_one_final %>% filter(V7==0)
+nrow(number_of_rematch_wins)
+nrow(number_of_rematch_losses)
+rematch_winning_rate <- nrow(number_of_rematch_wins)/(nrow(number_of_rematch_wins)+nrow(number_of_rematch_losses))
+rematch_winning_rate
+
+rematch_losing_rate <- nrow(number_of_rematch_losses)/(nrow(number_of_rematch_wins)+nrow(number_of_rematch_losses))
+rematch_losing_rate
+```
+
+```{r plotrematch, echo=FALSE, eval=TRUE, message=FALSE, results='show', fig.width=6}
+rematch_win_lost_df <- data.frame(rematch_game_result=c('won','lost'), probability=c(rematch_winning_rate, rematch_losing_rate))
+ggplot(rematch_win_lost_df, aes(x=rematch_game_result, y=probability)) + geom_bar(stat='identity', fill='steelblue') + geom_text(aes(label=probability), vjust=-0.3, size=3.5) + theme_minimal()
+```
+
+
+##### It turned out that the odds returned to the normality of approximately 50%
+
+<br>
+
+<center>
+
+![](https://media.giphy.com/media/xT0CywuC714VPBF2Bq/giphy.gif)
+
+</center>
+
+<br>
+
+
+#### 5, Conclusion & thoughts on Professor Steven's findings and approach:
+
+In their next match, their win/loss rate returned to the normal level. In his book Freaknomics and also his paper on sumo match-fixing, STEVEN D. LEVITT claimed that when these two wrestlers meet for the next bout, the previous winner will have only 40% chance of winning. However, I found this piece of finding inaccurate, since according to our studies, the win/loss rate is not particularly lower than their average performance. 
+
+One reason that can explain this is that Steven D. Leivtt only used the data from 1989-2000, while our data covers every tournament bout from 1983 to 1999. With more data, I believe we provided a more accurate conclusion that the win/loss rate for the critical games(i.e. wrestlers with 7wins-7losses entering their final games) tend to have an abnormal high chance of winning, which proved the potential corruption. However, when they meet again in the next tournament, we could not find any obvious win/loss probabilitic discrepencies compared with their regular performance.
+
+<center>
+
+![](https://media.giphy.com/media/xUOwG7iZpdDbfBrCr6/giphy.gif)
+
+</center>
+
+<br>
+
+### The End
